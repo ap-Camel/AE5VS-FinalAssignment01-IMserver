@@ -55,6 +55,16 @@ public class ClientHandler implements Runnable {
 		activeGroupIndex = 0;
 	}
 	
+	public boolean CheckForDuplicateGroup(String password) {
+		boolean wasUsed = false;
+		for(Group g:clientGroups) {
+			if(g.password == password && this.userName == g.ownerName) {
+				wasUsed = true;
+			}
+		}
+		return wasUsed;
+	}
+	
 	public void CreateNewGroup(String password) {
 		Group group = new Group(password, userName, this, groupsCreated);
 		clientGroups.add(group);
@@ -132,55 +142,30 @@ public class ClientHandler implements Runnable {
 							
 						// case for creating a new group
 						// checks if if the password entered or the randomly generated is used for another group
-						case "createNewGroup":
+						case "createNewGroup":			
 							
 							// condition for when a password was given
-							if(arr.length > 1) {
-								boolean wasUsed = false;
-								for(Group g:clientGroups) {
-									if(g.password == arr[1] && this.userName == g.ownerName) {
-										os.write("password already in use".getBytes());
-										wasUsed = true;
-									}
+							if(arr.length > 1) {																
+								
+								// for checking if the password was already in use and creating a new group
+								if(!CheckForDuplicateGroup(arr[1])) {									
+									CreateNewGroup(arr[1]);									
+									os.write(("\r\ngroups was created, password is: " + arr[1] + "  owner is: " + this.userName).getBytes());																
+								} else {
+									os.write("\r\npassword already in use".getBytes());
 								}
-								// for checking if the password was already in use
-								if(!wasUsed) {
-									Group group = new Group(arr[1], userName, this, groupsCreated);
-									clientGroups.add(group);
-									groupsCreated++;
-									os.write(("groups was created, password is: " + arr[1] + "  owner is: " + this.userName).getBytes());
-									byteArr = new byte[1000];
-									os.write("\n".getBytes());									
-									myGroups.add(clientGroups.indexOf(group));
-									activeGroupIndex = myGroups.size();
-								}							
 							} 
 							// condition for when a password was not given so it is randomly gene
 							else {
-								boolean wasUsed = false;
 								while(true) {
 									pass = Integer.toString(rand.nextInt(9999));
-									for(Group g:clientGroups) {
-										if(g.password == pass && this.userName == g.ownerName) {
-											//os.write("password already in use".getBytes());
-											wasUsed = true;
-										}
-									}
-									// for checking if the password was already in use
-									if(!wasUsed) {
-										Group group = new Group(pass, userName, this, groupsCreated);
-										clientGroups.add(group);
-										groupsCreated++;
-										os.write(("groups was created, password is: " + pass + "  owner is: " + this.userName).getBytes());
-										byteArr = new byte[1000];
-										os.write("\n".getBytes());		
-										myGroups.add(clientGroups.indexOf(group));
-										activeGroupIndex = myGroups.size();
+									if(!CheckForDuplicateGroup(pass)) {										
+										CreateNewGroup(pass);										
+										os.write(("\r\ngroups was created, password is: " + pass + "  owner is: " + this.userName + "\r\n").getBytes());																		
+									}											
 										break;
 									} 
-									wasUsed = false;
-								}
-							}
+								}							
 							byteArr = new byte[1000];
 							break;
 						
@@ -190,46 +175,17 @@ public class ClientHandler implements Runnable {
 							// checks if the user has entered a password and username
 							if(arr.length > 2) {
 								for(int i = 0; i < clientGroups.size(); i++) {
-									/*
-									if(arr[1] == clientGroups.get(i).ownerName && arr[2] == clientGroups.get(i).password) {
+									
+									if(arr[1].equals(clientGroups.get(i).ownerName) && arr[2].equals(clientGroups.get(i).password)) {
 										if(myGroups.contains(i)) {
-											os.write("you have joined the group".getBytes());
-											activeGroupIndex = i;
-										} else {
-											clientGroups.get(i).clientHandlers.add(this);	
-											myGroups.add(i);
-											activeGroupIndex = i;
-											os.write("you have joined a new group".getBytes());
-										}
-									}
-									*/
-									// check if the user entered valid username and password
-									if(arr[1].equals(clientGroups.get(i).ownerName)) {
-										if(arr[2].equals(clientGroups.get(i).password)) {
-											
-											// checks if the user was already in group
-											if(myGroups.contains(i)) {
-												os.write("\r\nyou have joined the group".getBytes());
-												byteArr = new byte[1000];
-												//os.write("\n".getBytes());		
+												os.write("\r\nyou have joined the group\r\n".getBytes());
 												activeGroupIndex = i;
 												
+												int chatSize = clientGroups.get(activeGroupIndex).chat.size();
 												// print the missed messages depending on the number of missed messages from notifications
-												for(int j = clientGroups.get(activeGroupIndex).chat.size() - clientGroups.get(activeGroupIndex).clientHandlersN.get(this); j < clientGroups.get(activeGroupIndex).chat.size(); j++) {
-													//os.write("group: " + this.clientGroups.get(activeGroupIndex).groupName + "message: " + clientGroups.get(activeGroupIndex).chat.get(j).getBytes());
-													//os.write(("\r\ngroup: " + clientGroups.get(activeGroupIndex).groupName + "message: " + clientGroups.get(activeGroupIndex).chat.get(j)).getBytes());
-													//byteArr = new byte[1000];
-													//os.write("\n".getBytes());	
-													
-													String message ="\r\ngroup: " + clientGroups.get(activeGroupIndex).groupName + "  message: " + clientGroups.get(activeGroupIndex).chat.get(j);
-													this.messageInbox.offer(message);
-												}
-												
-												/*
-												for(String s:this.clientGroups.get(activeGroupIndex).chat) {
-													os.write(("groupID: " + activeGroupIndex + "  message: " + s).getBytes());
-												}
-												*/
+												for(int j = chatSize - clientGroups.get(activeGroupIndex).clientHandlersN.get(this); j < chatSize; j++) {
+													os.write(("message: " + clientGroups.get(activeGroupIndex).chat.get(j)).getBytes());													
+												}																								
 											} 
 											// if the user enters the group for the first time
 											else {
@@ -237,43 +193,16 @@ public class ClientHandler implements Runnable {
 												clientGroups.get(i).clientHandlersN.put(this, 0);	
 												myGroups.add(i);
 												activeGroupIndex = i;
-												os.write("\r\nyou have joined a new group".getBytes());
-												byteArr = new byte[1000];
-												//os.write("\n".getBytes());
-												
-												for(int j = clientGroups.get(activeGroupIndex).chat.size() - clientGroups.get(activeGroupIndex).clientHandlersN.get(this); j < clientGroups.get(activeGroupIndex).chat.size(); j++) {
-													//os.write("group: " + this.clientGroups.get(activeGroupIndex).groupName + "message: " + clientGroups.get(activeGroupIndex).chat.get(j).getBytes());
-													//os.write(("\r\ngroup: " + clientGroups.get(activeGroupIndex).groupName + "message: " + clientGroups.get(activeGroupIndex).chat.get(j)).getBytes());
-													//byteArr = new byte[1000];
-													//os.write("\n".getBytes());	
-													
-													String message ="\r\ngroup: " + clientGroups.get(activeGroupIndex).groupName + "  message: " + clientGroups.get(activeGroupIndex).chat.get(j);
-													this.messageInbox.offer(message);
-												}
-												
-												/*
-												for(String s:this.clientGroups.get(activeGroupIndex).chat) {
-													os.write(("groupID: " + activeGroupIndex + "  message: " + s).getBytes());
-													byteArr = new byte[1000];
-													os.write("\n".getBytes());		
-												}
-												*/
+												os.write("\r\nyou have joined a new group\r\n".getBytes());
+																																																										
 											}
-										} else {
-											//os.write("password is wrong".getBytes());
-											//os.write(("entered password is: " + "|" + arr[2] + "| and actual password is: |" + clientGroups.get(i).password + "|").getBytes());
-										}
-									} else {
-										//os.write("username is wrong\n".getBytes());
-										//os.write(("entered username is: " + "|" + arr[1] + "| and actual username is: |" + clientGroups.get(i).ownerName + "|").getBytes());
 									}
 								}
 							} else {
-								os.write("username or password is wrong".getBytes());
-								byteArr = new byte[1000];
-								os.write("\n".getBytes());		
+								os.write("\r\nusername or password is wrong\r\n".getBytes());	
 							}
 							byteArr = new byte[1000];
+							os.write("\r\n".getBytes());
 							break;
 							
 						// case for showing the groups the user is part of
@@ -283,7 +212,6 @@ public class ClientHandler implements Runnable {
 							for(Integer i:myGroups) {
 								String message ="\r\ngroupName: " + clientGroups.get(i).groupName + "  username: " + clientGroups.get(i).ownerName + "  password: " + clientGroups.get(i).password;
 								this.messageInbox.offer(message);
-								//os.write(("username: " + clientGroups.get(i).ownerName + "password: " + clientGroups.get(i).password).getBytes());
 								
 							}
 							break;
@@ -291,7 +219,7 @@ public class ClientHandler implements Runnable {
 						// just puts some \n so it appears that it clearing but it is not just goes down a bit
 						case "clear": 
 							//os.write("\\033[H\\033[2J".getBytes());
-							os.write("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n".getBytes());
+							os.write("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\r\n".getBytes());
 							os.flush();
 							break;
 						
@@ -302,18 +230,13 @@ public class ClientHandler implements Runnable {
 								// checks if the one who is trying to change the name is the group owner
 								if(this.userName == this.clientGroups.get(activeGroupIndex).ownerName) {
 									clientGroups.get(activeGroupIndex).groupName = arr[1];
-									os.write(("\r\nthe group name was changed to: " + arr[1]).getBytes());
-									byteArr = new byte[1000];
-									os.write("\n".getBytes());		
+									os.write(("\r\nthe group name was changed to: " + arr[1] + "\r\n").getBytes());
 								} else {
-									os.write("\r\nyou dont have the right to change the name of this group".getBytes());
-									byteArr = new byte[1000];
-									os.write("\n".getBytes());		
+									os.write("\r\nyou dont have the right to change the name of this group\r\n".getBytes());
 								}
 							} else {
-								os.write("invalid group name".getBytes());
-								byteArr = new byte[1000];
-								os.write("\n".getBytes());									}
+								os.write("\r\ninvalid group name\r\n".getBytes());
+								}
 							break;
 						
 						// show the users notifications, in which groups, how many messages they have missed
@@ -330,26 +253,26 @@ public class ClientHandler implements Runnable {
 						// show message history depending on the number of desiered messages wanting to be shown
 						case"showMessageHistory": 
 							// check if number entered and is smaller than the number of all messages in the chat history
+							int chatSize = clientGroups.get(activeGroupIndex).chat.size();
 							if(arr.length > 1 && Integer.parseInt(arr[1]) < clientGroups.get(activeGroupIndex).chat.size()) {
-								for(int i = clientGroups.get(activeGroupIndex).chat.size() - Integer.parseInt(arr[1]); i < clientGroups.get(activeGroupIndex).chat.size(); i++) {
-									os.write(("\r\nmessage: " + clientGroups.get(activeGroupIndex).chat.get(i)).getBytes());
-									byteArr = new byte[1000];
+								
+								for(int i = chatSize - Integer.parseInt(arr[1]); i < chatSize; i++) {
+									os.write(("message: " + clientGroups.get(activeGroupIndex).chat.get(i)).getBytes());
 								}
 							} 
 							// if the number was bigger just print all messages in history
 							else {
-								for(int i = 0; i < clientGroups.get(activeGroupIndex).chat.size(); i++) {
-									os.write(("\r\nmessage: " + clientGroups.get(activeGroupIndex).chat.get(i)).getBytes());
-									byteArr = new byte[1000];
+								for(int i = 0; i < chatSize; i++) {
+									os.write(("message: " + clientGroups.get(activeGroupIndex).chat.get(i)).getBytes());
 								}
 							}
+							os.write("\r\n".getBytes());
+							
 							break;
 							
 						// default case 
 						default:
-							String message = "not a valid command";
-							this.messageInbox.offer(message);
-							//os.write("not a valid command".getBytes());
+							os.write("\r\nnot a valid command\r\n".getBytes());
 							break;
 						}
 					} else {
