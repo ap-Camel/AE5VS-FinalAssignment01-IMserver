@@ -55,6 +55,7 @@ public class ClientHandler implements Runnable {
 		activeGroupIndex = 0;
 	}
 	
+	// check if a group exists with the given password
 	public boolean CheckForDuplicateGroup(String password) {
 		boolean wasUsed = false;
 		for(Group g:clientGroups) {
@@ -65,6 +66,7 @@ public class ClientHandler implements Runnable {
 		return wasUsed;
 	}
 	
+	//create a new group inside the server with the given password
 	public void CreateNewGroup(String password) {
 		Group group = new Group(password, userName, this, groupsCreated);
 		clientGroups.add(group);
@@ -155,7 +157,7 @@ public class ClientHandler implements Runnable {
 									os.write("\r\npassword already in use".getBytes());
 								}
 							} 
-							// condition for when a password was not given so it is randomly gene
+							// condition for when a password was not given so it is randomly generated
 							else {
 								while(true) {
 									pass = Integer.toString(rand.nextInt(9999));
